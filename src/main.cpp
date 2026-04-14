@@ -17,7 +17,7 @@
 int main() {
     std::vector<int> circleCounts = {1000, 5000, 10000, 50000, 100000};
     std::vector<int> gridSizes = {2, 4, 8, 16, 32};
-    const int numIterations = 1;
+    const int numIterations = 10;
     int width = 1920;
     int height = 1080;
 

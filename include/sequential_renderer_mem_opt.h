@@ -7,6 +7,7 @@
 class SequentialRendererMemOpt : public Renderer {
     public:
         SequentialRendererMemOpt(int width, int height, int numCircles);
+        ~SequentialRendererMemOpt();
         void setCircles(Circles circles);
         void generateCircles() override;
         void generateImage() override;

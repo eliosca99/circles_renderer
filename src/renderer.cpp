@@ -7,11 +7,19 @@
 #include <ctime>
 #include <cmath>
 
-Renderer::Renderer(int width, int height, int numCircles, const std::string& title) : 
-    width(width), height(height), numCircles(numCircles), GRID_SIZE(4), 
-    image(sf::Image(sf::Vector2u(width, height), sf::Color::Transparent)), 
+Renderer::Renderer(int width, int height, int numCircles, const std::string& title) :
+    width(width), height(height), numCircles(numCircles), title(title), GRID_SIZE(4),
+    counter(nullptr),
+    image(sf::Image(sf::Vector2u(width, height), sf::Color::Transparent)),
     texture(sf::Texture(image)),
     sprite(sf::Sprite(texture)) {
+}
+
+Renderer::~Renderer() {
+    if (counter) {
+        for (int i = 0; i < GRID_SIZE; i++) delete[] counter[i];
+        delete[] counter;
+    }
 }
 
 sf::Color Renderer::blend(sf::Color& background, sf::Color& color) {

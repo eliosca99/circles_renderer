@@ -8,6 +8,7 @@
 class SequentialRendererBase : public Renderer {
     public:
         SequentialRendererBase(int width, int height, int numCircles);
+        ~SequentialRendererBase();
         void setCircles(Circle* circles);
         void generateCircles() override;
         void generateImage() override;

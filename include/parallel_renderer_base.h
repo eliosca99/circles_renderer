@@ -7,6 +7,7 @@
 class ParallelRendererBase : public Renderer {
     public:
         ParallelRendererBase(int width, int height, int numCircles);
+        virtual ~ParallelRendererBase();
         void setCircles(Circle* circles);
         void generateCircles() override;
         void generateImage() override;

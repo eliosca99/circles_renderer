@@ -6,6 +6,7 @@
 class ParallelRendererSoA : public Renderer {
     public:
         ParallelRendererSoA(int width, int height, int numCircles);
+        virtual ~ParallelRendererSoA();
         void setCircles(Circles circles);
         void generateCircles() override;
         void generateImage() override;

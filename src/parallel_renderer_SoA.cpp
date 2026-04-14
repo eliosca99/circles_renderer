@@ -10,9 +10,28 @@
 #include <omp.h>
 #include "utils.h"
 
-ParallelRendererSoA::ParallelRendererSoA(int width, int height, int numCircles) : 
-    Renderer(width, height, numCircles, "Random circles rendering - Parallel SoA") {
+ParallelRendererSoA::ParallelRendererSoA(int width, int height, int numCircles) :
+    Renderer(width, height, numCircles, "Random circles rendering - Parallel SoA"), grid(nullptr) {
+}
+
+ParallelRendererSoA::~ParallelRendererSoA() {
+    if (grid) {
+        for (int i = 0; i < GRID_SIZE; i++) {
+            for (int j = 0; j < GRID_SIZE; j++) {
+                delete[] grid[i][j].x;
+                delete[] grid[i][j].y;
+                delete[] grid[i][j].z;
+                delete[] grid[i][j].radius;
+                delete[] grid[i][j].r;
+                delete[] grid[i][j].g;
+                delete[] grid[i][j].b;
+                delete[] grid[i][j].a;
+            }
+            delete[] grid[i];
+        }
+        delete[] grid;
     }
+}
 
 void ParallelRendererSoA::generateCircles() {
     //genero i cerchi casualmente in base alla finestra e alla
@@ -138,17 +157,8 @@ void ParallelRendererSoA::assignCirclesToGrid() {
     }
 
     //elimino i counter e l'array di cerchi
+    for (int i = 0; i < GRID_SIZE; i++) delete[] counterCopy[i];
     delete[] counterCopy;
-    /*
-    delete[] circles.x;
-    delete[] circles.y;
-    delete[] circles.z;
-    delete[] circles.radius;
-    delete[] circles.r;
-    delete[] circles.g;
-    delete[] circles.b;
-    delete[] circles.a;
-    */
 }
 
 void ParallelRendererSoA::overlappedCells(int* xMin, int* xMax, int* yMin, int* yMax, int i) {
@@ -166,7 +176,7 @@ void ParallelRendererSoA::overlappedCells(int* xMin, int* xMax, int* yMin, int* 
 void ParallelRendererSoA::generateImage() {
     //metodo che itera sulle celle della griglia e per ogni cella
     //itera sui pixel che la compongono, verifica a quali cerchi appartiene,
-    //fa il blending e assegna il pixel all'immagineParallelRendererSoAOverPixels(int width, int height, int numCircles);
+    //fa il blending e assegna il pixel all'immagine
 
     int cellWidth = width / GRID_SIZE;
     int cellHeight = height / GRID_SIZE;
@@ -174,12 +184,23 @@ void ParallelRendererSoA::generateImage() {
     #pragma omp parallel for collapse(2) schedule(dynamic)
     for(int row = 0; row < GRID_SIZE; row++) {
         for(int col = 0; col < GRID_SIZE; col++) {
-            for(int i = (cellHeight * row); i < (cellHeight) * (row + 1); i++) {
-                for(int j = (cellWidth * col); j < (cellWidth) * (col + 1); j++) {
+            // hits è privato per ogni thread (dichiarato nel corpo del loop parallelo)
+            int n = counter[row][col];
+            std::vector<int> hits(n);
+            for(int i = cellHeight * row; i < std::min(height, cellHeight * (row + 1)); i++) {
+                for(int j = cellWidth * col; j < std::min(width, cellWidth * (col + 1)); j++) {
+                    // fase 1: test geometrico vettorizzabile (nessuna dipendenza tra k)
+                    #pragma omp simd
+                    for(int k = 0; k < n; k++) {
+                        int dy = i - (int)grid[row][col].y[k];
+                        int dx = j - (int)grid[row][col].x[k];
+                        int r  = (int)grid[row][col].radius[k];
+                        hits[k] = (dy*dy + dx*dx <= r*r) ? 1 : 0;
+                    }
+                    // fase 2: blend sequenziale (dipendenza su finalColor)
                     sf::Color finalColor = sf::Color::Transparent;
-                    for(int k = 0; k < counter[row][col]; k++) {
-                        if ((i - grid[row][col].y[k]) * (i - grid[row][col].y[k]) + (j - grid[row][col].x[k]) * (j - grid[row][col].x[k]) <= grid[row][col].radius[k] * grid[row][col].radius[k]) {
-                            //se il pixel i,j è dentro il cerchio k allora faccio il blending
+                    for(int k = 0; k < n; k++) {
+                        if (hits[k]) {
                             sf::Color color = sf::Color(grid[row][col].r[k], grid[row][col].g[k], grid[row][col].b[k], grid[row][col].a[k]);
                             finalColor = blend(finalColor, color);
                         }
@@ -187,7 +208,6 @@ void ParallelRendererSoA::generateImage() {
                     image.setPixel(sf::Vector2u(j, i), finalColor);
                 }
             }
-            
         }
     }
 
@@ -198,6 +218,8 @@ void ParallelRendererSoA::generateImage() {
 }
 
 void ParallelRendererSoA::render() {
+    if (!window.isOpen())
+        window.create(sf::VideoMode(sf::Vector2u(width, height)), title);
     while (window.isOpen())
     {
         while (const std::optional event = window.pollEvent())

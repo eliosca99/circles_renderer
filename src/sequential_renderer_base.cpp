@@ -7,9 +7,19 @@
 #include <cmath>
 #include "utils.h"
 
-SequentialRendererBase::SequentialRendererBase(int width, int height, int numCircles) : 
-    Renderer(width, height, numCircles, "Random circles rendering - Sequential") {
+SequentialRendererBase::SequentialRendererBase(int width, int height, int numCircles) :
+    Renderer(width, height, numCircles, "Random circles rendering - Sequential"), grid(nullptr) {
+}
+
+SequentialRendererBase::~SequentialRendererBase() {
+    if (grid) {
+        for (int i = 0; i < GRID_SIZE; i++) {
+            for (int j = 0; j < GRID_SIZE; j++) delete[] grid[i][j];
+            delete[] grid[i];
+        }
+        delete[] grid;
     }
+}
 
 void SequentialRendererBase::generateCircles() {
     //genero i cerchi casualmente in base alla finestra e alla
@@ -117,8 +127,8 @@ void SequentialRendererBase::assignCirclesToGrid() {
     }
 
     //elimino i counter e l'array di cerchi
+    for (int i = 0; i < GRID_SIZE; i++) delete[] counterCopy[i];
     delete[] counterCopy;
-    //delete[] circles;
 }
 
 void SequentialRendererBase::overlappedCells(int* xMin, int* xMax, int* yMin, int* yMax, int i) {
@@ -146,8 +156,8 @@ void SequentialRendererBase::generateImage() {
     int cellHeight = height / GRID_SIZE;
     for(int row = 0; row < GRID_SIZE; row++) {
         for(int col = 0; col < GRID_SIZE; col++) {
-            for(int i = (cellHeight * row); i < (cellHeight) * (row + 1); i++) {
-                for(int j = (cellWidth * col); j < (cellWidth) * (col + 1); j++) {
+            for(int i = cellHeight * row; i < std::min(height, cellHeight * (row + 1)); i++) {
+                for(int j = cellWidth * col; j < std::min(width, cellWidth * (col + 1)); j++) {
                     sf::Color finalColor = sf::Color::Transparent;
                     for(int k = 0; k < counter[row][col]; k++) {
                         if ((i - grid[row][col][k].y) * (i - grid[row][col][k].y) + (j - grid[row][col][k].x) * (j - grid[row][col][k].x) <= grid[row][col][k].radius * grid[row][col][k].radius) {
@@ -167,6 +177,8 @@ void SequentialRendererBase::generateImage() {
 }
 
 void SequentialRendererBase::render() {
+    if (!window.isOpen())
+        window.create(sf::VideoMode(sf::Vector2u(width, height)), title);
     while (window.isOpen())
     {
         while (const std::optional event = window.pollEvent())

@@ -8,9 +8,28 @@
 #include <chrono>
 #include "utils.h"
 
-SequentialRendererMemOpt::SequentialRendererMemOpt(int width, int height, int numCircles) : 
-    Renderer(width, height, numCircles, "Random circles rendering - Sequential Memory Optimzation") {
+SequentialRendererMemOpt::SequentialRendererMemOpt(int width, int height, int numCircles) :
+    Renderer(width, height, numCircles, "Random circles rendering - Sequential Memory Optimization"), grid(nullptr) {
+}
+
+SequentialRendererMemOpt::~SequentialRendererMemOpt() {
+    if (grid) {
+        for (int i = 0; i < GRID_SIZE; i++) {
+            for (int j = 0; j < GRID_SIZE; j++) {
+                delete[] grid[i][j].x;
+                delete[] grid[i][j].y;
+                delete[] grid[i][j].z;
+                delete[] grid[i][j].radius;
+                delete[] grid[i][j].r;
+                delete[] grid[i][j].g;
+                delete[] grid[i][j].b;
+                delete[] grid[i][j].a;
+            }
+            delete[] grid[i];
+        }
+        delete[] grid;
     }
+}
 
 void SequentialRendererMemOpt::generateCircles() {
     //genero i cerchi casualmente in base alla finestra e alla
@@ -136,17 +155,8 @@ void SequentialRendererMemOpt::assignCirclesToGrid() {
     }
 
     //elimino i counter e l'array di cerchi
+    for (int i = 0; i < GRID_SIZE; i++) delete[] counterCopy[i];
     delete[] counterCopy;
-    /*
-    delete[] circles.x;
-    delete[] circles.y;
-    delete[] circles.z;
-    delete[] circles.radius;
-    delete[] circles.r;
-    delete[] circles.g;
-    delete[] circles.b;
-    delete[] circles.a;
-    */
 }
 
 void SequentialRendererMemOpt::overlappedCells(int* xMin, int* xMax, int* yMin, int* yMax, int i) {
@@ -177,12 +187,11 @@ void SequentialRendererMemOpt::generateImage() {
     int cellHeight = height / GRID_SIZE;
     for(int row = 0; row < GRID_SIZE; row++) {
         for(int col = 0; col < GRID_SIZE; col++) {
-            for(int i = (cellHeight * row); i < (cellHeight) * (row + 1); i++) {
-                for(int j = (cellWidth * col); j < (cellWidth) * (col + 1); j++) {
+            for(int i = cellHeight * row; i < std::min(height, cellHeight * (row + 1)); i++) {
+                for(int j = cellWidth * col; j < std::min(width, cellWidth * (col + 1)); j++) {
                     sf::Color finalColor = sf::Color::Transparent;
                     for(int k = 0; k < counter[row][col]; k++) {
                         if ((i - grid[row][col].y[k]) * (i - grid[row][col].y[k]) + (j - grid[row][col].x[k]) * (j - grid[row][col].x[k]) <= grid[row][col].radius[k] * grid[row][col].radius[k]) {
-                            //se il pixel i,j è dentro il cerchio k allora faccio il blending
                             sf::Color color = sf::Color(grid[row][col].r[k], grid[row][col].g[k], grid[row][col].b[k], grid[row][col].a[k]);
                             finalColor = blend(finalColor, color);
                         }
@@ -190,7 +199,6 @@ void SequentialRendererMemOpt::generateImage() {
                     image.setPixel(sf::Vector2u(j, i), finalColor);
                 }
             }
-            
         }
     }
 
@@ -201,6 +209,8 @@ void SequentialRendererMemOpt::generateImage() {
 }
 
 void SequentialRendererMemOpt::render() {
+    if (!window.isOpen())
+        window.create(sf::VideoMode(sf::Vector2u(width, height)), title);
     while (window.isOpen())
     {
         while (const std::optional event = window.pollEvent())
