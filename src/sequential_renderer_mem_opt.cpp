@@ -187,8 +187,10 @@ void SequentialRendererMemOpt::generateImage() {
     int cellHeight = height / GRID_SIZE;
     for(int row = 0; row < GRID_SIZE; row++) {
         for(int col = 0; col < GRID_SIZE; col++) {
-            for(int i = cellHeight * row; i < std::min(height, cellHeight * (row + 1)); i++) {
-                for(int j = cellWidth * col; j < std::min(width, cellWidth * (col + 1)); j++) {
+            int iEnd = (row == GRID_SIZE - 1) ? height : cellHeight * (row + 1);
+            int jEnd = (col == GRID_SIZE - 1) ? width : cellWidth * (col + 1);
+            for(int i = cellHeight * row; i < iEnd; i++) {
+                for(int j = cellWidth * col; j < jEnd; j++) {
                     sf::Color finalColor = sf::Color::Transparent;
                     for(int k = 0; k < counter[row][col]; k++) {
                         if ((i - grid[row][col].y[k]) * (i - grid[row][col].y[k]) + (j - grid[row][col].x[k]) * (j - grid[row][col].x[k]) <= grid[row][col].radius[k] * grid[row][col].radius[k]) {
