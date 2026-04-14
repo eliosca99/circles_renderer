@@ -17,7 +17,8 @@
 int main() {
     std::vector<int> circleCounts = {1000, 5000, 10000, 20000, 50000};
     std::vector<int> gridSizes = {4, 8, 16, 32};
-    const int numIterations = 10;
+    std::vector<int> threadCounts = {4, 8, 12, 16};
+    const int numIterations = 1;
     int width = 1920;
     int height = 1080;
 
@@ -27,7 +28,7 @@ int main() {
         return 1;
     }
 
-    csvFile << "NumCircles,GridSize,Sequential,SequentialMemOpt,Parallel,ParallelOverPixels,ParallelSoA,ParallelSoAOverPixels\n";
+    csvFile << "NumCircles,GridSize,NumThreads,Sequential,SequentialMemOpt,Parallel,ParallelOverPixels,ParallelSoA,ParallelSoAOverPixels\n";
 
     for (int numCircles : circleCounts) {
         for (int gridSize : gridSizes) {
@@ -36,7 +37,7 @@ int main() {
             Circle* circlesAoS = Utils::generateCirclesAoS(numCircles, width, height, gridSize);
             Circles circlesSoA = Utils::generateCirclesSoA(numCircles, width, height, gridSize);
 
-            double avgSeq = 0, avgSeqMem = 0, avgPar = 0, avgParOverPixels = 0, avgParSoA = 0, avgParSoAOverPixels = 0;
+            double avgSeq = 0, avgSeqMem = 0;
 
             // 1. Sequential Base
             SequentialRendererBase seqRendererBase(width, height, numCircles);
@@ -64,67 +65,76 @@ int main() {
             avgSeqMem /= numIterations;
             std::cout << "Sequential Mem Opt rendering time: " << avgSeqMem << " s" << std::endl;
 
-            // 3. Parallel Base
-            ParallelRendererBase parRendererBase(width, height, numCircles);
-            parRendererBase.setGridSize(gridSize);
-            parRendererBase.setCircles(circlesAoS);
-            for (int i = 0; i < numIterations; ++i) {
-                auto startPar = std::chrono::high_resolution_clock::now();
-                parRendererBase.generateImage();
-                auto endPar = std::chrono::high_resolution_clock::now();
-                avgPar += std::chrono::duration<double>(endPar - startPar).count();
-            }
-            avgPar /= numIterations;
-            std::cout << "Parallel rendering time: " << avgPar << " s" << std::endl;
+            for (int numThreads : threadCounts) {
+                omp_set_num_threads(numThreads);
+                std::cout << "\n--- Test Paralleli con " << numThreads << " Threads ---" << std::endl;
 
-            // 4. Parallel Over Pixels
-            ParallelRendererOverPixels parRendererOverPixels(width, height, numCircles);
-            parRendererOverPixels.setGridSize(gridSize);
-            parRendererOverPixels.setCircles(circlesAoS);
-            for (int i = 0; i < numIterations; ++i) {
-                auto startParOverPixels = std::chrono::high_resolution_clock::now();
-                parRendererOverPixels.generateImage();
-                auto endParOverPixels = std::chrono::high_resolution_clock::now();
-                avgParOverPixels += std::chrono::duration<double>(endParOverPixels - startParOverPixels).count();
-            }
-            avgParOverPixels /= numIterations;
-            std::cout << "Parallel Over Pixels rendering time: " << avgParOverPixels << " s" << std::endl;
+                double avgPar = 0, avgParOverPixels = 0, avgParSoA = 0, avgParSoAOverPixels = 0;
 
-            // 5. Parallel SoA
-            ParallelRendererSoA parRendererSoA(width, height, numCircles);
-            parRendererSoA.setGridSize(gridSize);
-            parRendererSoA.setCircles(circlesSoA);
-            for (int i = 0; i < numIterations; ++i) {
-                auto startParSoA = std::chrono::high_resolution_clock::now();
-                parRendererSoA.generateImage();
-                auto endParSoA = std::chrono::high_resolution_clock::now();
-                avgParSoA += std::chrono::duration<double>(endParSoA - startParSoA).count();
-            }
-            avgParSoA /= numIterations;
-            std::cout << "Parallel SoA rendering time: " << avgParSoA << " s" << std::endl;
+                // 3. Parallel Base
+                ParallelRendererBase parRendererBase(width, height, numCircles);
+                parRendererBase.setGridSize(gridSize);
+                parRendererBase.setCircles(circlesAoS);
+                for (int i = 0; i < numIterations; ++i) {
+                    auto startPar = std::chrono::high_resolution_clock::now();
+                    parRendererBase.generateImage();
+                    auto endPar = std::chrono::high_resolution_clock::now();
+                    avgPar += std::chrono::duration<double>(endPar - startPar).count();
+                }
+                avgPar /= numIterations;
+                std::cout << "Parallel (" << numThreads << " threads) rendering time: " << avgPar << " s" << std::endl;
 
-            // 6. Parallel SoA Over Pixels
-            ParallelRendererSoAOverPixels parRendererSoAOverPixels(width, height, numCircles);
-            parRendererSoAOverPixels.setGridSize(gridSize);
-            parRendererSoAOverPixels.setCircles(circlesSoA);
-            for (int i = 0; i < numIterations; ++i) {
-                auto startParSoAOverPixels = std::chrono::high_resolution_clock::now();
-                parRendererSoAOverPixels.generateImage();
-                auto endParSoAOverPixels = std::chrono::high_resolution_clock::now();
-                avgParSoAOverPixels += std::chrono::duration<double>(endParSoAOverPixels - startParSoAOverPixels).count();
-            }
-            avgParSoAOverPixels /= numIterations;
-            std::cout << "Parallel SoA Over Pixels rendering time: " << avgParSoAOverPixels << " s" << std::endl;
+                // 4. Parallel Over Pixels
+                ParallelRendererOverPixels parRendererOverPixels(width, height, numCircles);
+                parRendererOverPixels.setGridSize(gridSize);
+                parRendererOverPixels.setCircles(circlesAoS);
+                for (int i = 0; i < numIterations; ++i) {
+                    auto startParOverPixels = std::chrono::high_resolution_clock::now();
+                    parRendererOverPixels.generateImage();
+                    auto endParOverPixels = std::chrono::high_resolution_clock::now();
+                    avgParOverPixels += std::chrono::duration<double>(endParOverPixels - startParOverPixels).count();
+                }
+                avgParOverPixels /= numIterations;
+                std::cout << "Parallel Over Pixels (" << numThreads << " threads) rendering time: " << avgParOverPixels << " s" << std::endl;
 
-            // Scrittura dei dati su CSV
-            csvFile << numCircles << ","
-                    << gridSize << ","
-                    << avgSeq << ","
-                    << avgSeqMem << ","
-                    << avgPar << ","
-                    << avgParOverPixels << ","
-                    << avgParSoA << ","
-                    << avgParSoAOverPixels << "\n";
+                // 5. Parallel SoA
+                ParallelRendererSoA parRendererSoA(width, height, numCircles);
+                parRendererSoA.setGridSize(gridSize);
+                parRendererSoA.setCircles(circlesSoA);
+                for (int i = 0; i < numIterations; ++i) {
+                    auto startParSoA = std::chrono::high_resolution_clock::now();
+                    parRendererSoA.generateImage();
+                    auto endParSoA = std::chrono::high_resolution_clock::now();
+                    avgParSoA += std::chrono::duration<double>(endParSoA - startParSoA).count();
+                }
+                avgParSoA /= numIterations;
+                std::cout << "Parallel SoA (" << numThreads << " threads) rendering time: " << avgParSoA << " s" << std::endl;
+
+                // 6. Parallel SoA Over Pixels
+                ParallelRendererSoAOverPixels parRendererSoAOverPixels(width, height, numCircles);
+                parRendererSoAOverPixels.setGridSize(gridSize);
+                parRendererSoAOverPixels.setCircles(circlesSoA);
+                for (int i = 0; i < numIterations; ++i) {
+                    auto startParSoAOverPixels = std::chrono::high_resolution_clock::now();
+                    parRendererSoAOverPixels.generateImage();
+                    auto endParSoAOverPixels = std::chrono::high_resolution_clock::now();
+                    avgParSoAOverPixels += std::chrono::duration<double>(endParSoAOverPixels - startParSoAOverPixels).count();
+                }
+                avgParSoAOverPixels /= numIterations;
+                std::cout << "Parallel SoA Over Pixels (" << numThreads << " threads) rendering time: " << avgParSoAOverPixels << " s" << std::endl;
+
+                // Scrittura dei dati su CSV
+                csvFile << numCircles << ","
+                        << gridSize << ","
+                        << numThreads << ","
+                        << avgSeq << ","
+                        << avgSeqMem << ","
+                        << avgPar << ","
+                        << avgParOverPixels << ","
+                        << avgParSoA << ","
+                        << avgParSoAOverPixels << "\n";
+                csvFile.flush();
+            }
                     
             delete[] circlesAoS;
             delete[] circlesSoA.x;
