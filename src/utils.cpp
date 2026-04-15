@@ -74,7 +74,7 @@ Circle* Utils::generateCirclesAoS(int numCircles, int width, int height, int gri
     srand(static_cast<unsigned int>(time(0)));
 
     int minRadius = 10;
-    int maxRadius = (std::min(width, height)) / (grid_size * 2);
+    int maxRadius = 100;
 
     
     for (int i = 0; i < numCircles; i++) {
